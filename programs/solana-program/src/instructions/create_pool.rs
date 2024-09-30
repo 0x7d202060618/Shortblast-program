@@ -29,11 +29,6 @@ pub fn create_pool(ctx: Context<CreateLiquidityPool>) -> Result<()> {
         &ctx.accounts.system_program
     )?;
 
-    let pool_registry = &mut ctx.accounts.pool_registry;
-    pool_registry.pools.push( PoolToken {
-        token_mint: ctx.accounts.token_mint.key()
-    });
-
     Ok(())
 }
 
@@ -47,9 +42,6 @@ pub struct CreateLiquidityPool<'info> {
         bump
     )]
     pub pool: Box<Account<'info, LiquidityPool>>,
-
-    #[account(mut)]
-    pub pool_registry: Box<Account<'info, PoolRegistry>>, 
 
     #[account(mut)]
     pub token_mint: Box<Account<'info, Mint>>,
@@ -70,7 +62,6 @@ pub struct CreateLiquidityPool<'info> {
     pub pool_token_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
-        mut,
         seeds = [LiquidityPool::SOL_VAULT_PREFIX.as_bytes(), token_mint.key().as_ref()],
         bump
     )]

@@ -263,10 +263,10 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         let current_token_supply = (self.total_supply as f64 - self.reserve_token as f64) / 1_000_000_000.0;
         msg!("current_token_supply {}", current_token_supply);
 
-        let buying_price = INITIAL_PROPORTION * INITIAL_EXPONENT * f64::exp(INITIAL_EXPONENT * current_token_supply);
+        let buying_price = INITIAL_PROPORTION * f64::exp(INITIAL_EXPONENT * current_token_supply); //buying price per 10M tokens
         msg!("buying_price {}", buying_price);
 
-        let token_amount_f64 = amount as f64 / 1_000_000_000.0 / buying_price;
+        let token_amount_f64 = amount as f64 / buying_price * 10_000_000.0;
         msg!("token_amount_f64 {}", token_amount_f64);
 
         let token_amount = token_amount_f64.round() as u64;
@@ -318,7 +318,7 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         let selling_price = INITIAL_PROPORTION * f64::exp(INITIAL_EXPONENT * (current_token_supply - amount as f64 / 1_000_000_000.0));
         msg!("selling_price {}", selling_price);
 
-        let sol_amount_f64 = selling_price * amount as f64 / 1_000_000_000.0;
+        let sol_amount_f64 = selling_price * amount as f64 / 10_000_000.0;
         msg!("sol_amount_f64 {}", sol_amount_f64);
 
         let sol_amount = sol_amount_f64.round() as u64;
@@ -406,14 +406,12 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             CpiContext::new_with_signer(
                 system_program.to_account_info(),
                 system_program::Transfer {
-                    from: from.clone(),
+                    from: from.to_account_info().clone(),
                     to: to.to_account_info().clone(),
                 },
                 &[&[
                     LiquidityPool::SOL_VAULT_PREFIX.as_bytes(),
                     self.token.key().as_ref(),
-                    // LiquidityPool::POOL_SEED_PREFIX.as_bytes(),
-                    // self.token.key().as_ref(),
                     &[bump],
                 ]],
             ),
