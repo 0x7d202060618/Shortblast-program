@@ -18,13 +18,15 @@ const connection = new Connection("https://api.devnet.solana.com", {
   commitment: "confirmed",
 });
 const user = Keypair.fromSecretKey(new Uint8Array(keys));
-const pool_reg_KP = Keypair.fromSecretKey(new Uint8Array(poolKey));
+const pool_reg_KP = Keypair.generate();
 const mintKeypair = Keypair.generate();
 
 ///////////////////////////////Constants////////////////////////////////
 const CURVE_SEED = "CurveConfiguration";
 const POOL_SEED = "liquidity_pool";
 const POOL_SOL_VAULT = "liquidity_sol_vault";
+const SHORT_POOL_SEED = "shorting_pool"
+const SHORT_POOL_SOL_VAULT = "shorting_pool_sol_vault";
 
 describe("solana-program", () => {
   // Configure the client to use the local cluster.
@@ -111,38 +113,38 @@ describe("solana-program", () => {
   //   console.log("Your transaction signature", sig);
   // });
 
-  // it("Initialize Pool", async () => {
-  //   const [curveConfig] = PublicKey.findProgramAddressSync(
-  //     [Buffer.from(CURVE_SEED)],
-  //     program.programId
-  //   );
-  //   const tx = new Transaction();
-  //     tx.add( SystemProgram.createAccount({
-  //     fromPubkey: user.publicKey,
-  //     newAccountPubkey: pool_reg_KP.publicKey,
-  //     lamports: await connection.getMinimumBalanceForRentExemption(
-  //       8+128
-  //     ),
-  //     space: 8+128,
-  //     programId: program.programId,
-  //   }));
-  //   tx.add(
-  //     await program.methods
-  //       .initializeCurve(1)
-  //       .accounts({
-  //         dexConfigurationAccount: curveConfig,
-  //         admin: user.publicKey,
-  //         poolRegistry: pool_reg_KP.publicKey,
-  //         rent: SYSVAR_RENT_PUBKEY,
-  //         systemProgram: SystemProgram.programId,
-  //       })
-  //       .instruction()
-  //   );
-  //   tx.feePayer = user.publicKey
-  //   tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
-  //   const sig = await sendAndConfirmTransaction(connection, tx, [user, pool_reg_KP], { skipPreflight: true })
-  //   console.log("Your transaction signature", sig);
-  // });
+  it("Initialize Pool", async () => {
+    const [curveConfig] = PublicKey.findProgramAddressSync(
+      [Buffer.from(CURVE_SEED)],
+      program.programId
+    );
+    const tx = new Transaction();
+      tx.add( SystemProgram.createAccount({
+      fromPubkey: user.publicKey,
+      newAccountPubkey: pool_reg_KP.publicKey,
+      lamports: await connection.getMinimumBalanceForRentExemption(
+        8+128
+      ),
+      space: 8+128,
+      programId: program.programId,
+    }));
+    tx.add(
+      await program.methods
+        .initializeCurve(1)
+        .accounts({
+          dexConfigurationAccount: curveConfig,
+          admin: user.publicKey,
+          poolRegistry: pool_reg_KP.publicKey,
+          rent: SYSVAR_RENT_PUBKEY,
+          systemProgram: SystemProgram.programId,
+        })
+        .instruction()
+    );
+    tx.feePayer = user.publicKey
+    tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
+    const sig = await sendAndConfirmTransaction(connection, tx, [user, pool_reg_KP], { skipPreflight: true })
+    console.log("Your transaction signature", sig);
+  });
 
   // it("Create Pool", async () => {
   //   // mint: 8CbAizCWGpNCwQ5oQJ6Ydv1ng4RwCyC5NCbANZfNiCJi
@@ -156,11 +158,25 @@ describe("solana-program", () => {
   //               ],
   //               program.programId
   //             )[0];
+  //   const short_pool = PublicKey.findProgramAddressSync(
+  //     [
+  //       Buffer.from(SHORT_POOL_SEED),
+  //       mint_pkey.toBuffer(),
+  //     ],
+  //     program.programId
+  //   )[0];
   //   const pool_token_account = getAssociatedTokenAddressSync(mint_pkey, pool, true)
-  //   const tx = new Transaction();
+  //   const short_pool_token_account = getAssociatedTokenAddressSync(mint_pkey, short_pool, true)
   //   const pool_sol_vault = PublicKey.findProgramAddressSync(
   //     [
   //       Buffer.from(POOL_SOL_VAULT),
+  //       mint_pkey.toBuffer(),
+  //     ],
+  //     program.programId
+  //   )[0];
+  //   const short_pool_sol_vault = PublicKey.findProgramAddressSync(
+  //     [
+  //       Buffer.from(SHORT_POOL_SOL_VAULT),
   //       mint_pkey.toBuffer(),
   //     ],
   //     program.programId
@@ -169,6 +185,7 @@ describe("solana-program", () => {
   //     mint_pkey,
   //     user.publicKey!
   //   );
+  //   const tx = new Transaction();
   //   // tx.add( SystemProgram.createAccount({
   //   //   fromPubkey: user.publicKey,
   //   //   newAccountPubkey: pool_reg_KP.publicKey,
@@ -190,6 +207,20 @@ describe("solana-program", () => {
   //     rent: SYSVAR_RENT_PUBKEY,
   //     systemProgram: SystemProgram.programId
   //   }).instruction());
+  //   tx.add(await program.methods.createShortPool().accounts({
+  //     payer: user.publicKey,
+  //     tokenMint: mint_pkey,
+  //     pool: short_pool,
+  //     userTokenAccount: associatedTokenAccountAddress,
+  //     poolTokenAccount: short_pool_token_account,
+  //     poolSolVault : short_pool_sol_vault,
+  //     tokenProgram: TOKEN_PROGRAM_ID,
+  //     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+  //     rent: SYSVAR_RENT_PUBKEY,
+  //     systemProgram: SystemProgram.programId
+  //   }).instruction());
+    
+    
   //   tx.feePayer = user.publicKey
   //   tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
   //   const sig = await sendAndConfirmTransaction(connection, tx, [user], { skipPreflight: true })
@@ -205,94 +236,94 @@ describe("solana-program", () => {
   //   console.log("Pool Registry", pool_registry)
   // })
 
-  it("Buy Token", async () => {
-    const [curveConfig] = PublicKey.findProgramAddressSync(
-      [Buffer.from(CURVE_SEED)],
-      program.programId
-    );
-    // const mint_pkey = mintKeypair.publicKey;
-    const mint_pkey = new PublicKey("EzSW6FNWaRbAwGz2V9mFCYkxdtaK378b4QD9MHJnCZQX");
-    const pool = PublicKey.findProgramAddressSync(
-                [
-                  Buffer.from(POOL_SEED),
-                  mint_pkey.toBuffer(),
-                ],
-                program.programId
-              )[0];
-    const pool_token_account = getAssociatedTokenAddressSync(mint_pkey, pool, true)
-    const tx = new Transaction();
-    const [pool_sol_vault] = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from(POOL_SOL_VAULT),
-        mint_pkey.toBuffer(),
-      ],
-      program.programId
-    );
-    const associatedTokenAccountAddress = getAssociatedTokenAddressSync(
-      mint_pkey,
-      user.publicKey!
-    );
-    tx.add(await program.methods.buy(new anchor.BN(10 ** 9)).accounts({
-      dexConfigurationAccount: curveConfig,
-      pool: pool,
-      user: user.publicKey,
-      tokenMint: mint_pkey,
-      poolTokenAccount: pool_token_account,
-      poolSolVault : pool_sol_vault,
-      userTokenAccount: associatedTokenAccountAddress,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-      rent: SYSVAR_RENT_PUBKEY,
-      systemProgram: SystemProgram.programId
-    }).instruction());
-    tx.feePayer = user.publicKey
-    tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
-    const sig = await sendAndConfirmTransaction(connection, tx, [user], { skipPreflight: true })
-    console.log("Your transaction signature", sig);
-  })
+  // it("Buy Token", async () => {
+  //   const [curveConfig] = PublicKey.findProgramAddressSync(
+  //     [Buffer.from(CURVE_SEED)],
+  //     program.programId
+  //   );
+  //   // const mint_pkey = mintKeypair.publicKey;
+  //   const mint_pkey = new PublicKey("EzSW6FNWaRbAwGz2V9mFCYkxdtaK378b4QD9MHJnCZQX");
+  //   const pool = PublicKey.findProgramAddressSync(
+  //               [
+  //                 Buffer.from(POOL_SEED),
+  //                 mint_pkey.toBuffer(),
+  //               ],
+  //               program.programId
+  //             )[0];
+  //   const pool_token_account = getAssociatedTokenAddressSync(mint_pkey, pool, true)
+  //   const tx = new Transaction();
+  //   const [pool_sol_vault] = PublicKey.findProgramAddressSync(
+  //     [
+  //       Buffer.from(POOL_SOL_VAULT),
+  //       mint_pkey.toBuffer(),
+  //     ],
+  //     program.programId
+  //   );
+  //   const associatedTokenAccountAddress = getAssociatedTokenAddressSync(
+  //     mint_pkey,
+  //     user.publicKey!
+  //   );
+  //   tx.add(await program.methods.buy(new anchor.BN(10 ** 9)).accounts({
+  //     dexConfigurationAccount: curveConfig,
+  //     pool: pool,
+  //     user: user.publicKey,
+  //     tokenMint: mint_pkey,
+  //     poolTokenAccount: pool_token_account,
+  //     poolSolVault : pool_sol_vault,
+  //     userTokenAccount: associatedTokenAccountAddress,
+  //     tokenProgram: TOKEN_PROGRAM_ID,
+  //     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+  //     rent: SYSVAR_RENT_PUBKEY,
+  //     systemProgram: SystemProgram.programId
+  //   }).instruction());
+  //   tx.feePayer = user.publicKey
+  //   tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
+  //   const sig = await sendAndConfirmTransaction(connection, tx, [user], { skipPreflight: true })
+  //   console.log("Your transaction signature", sig);
+  // })
 
-  it("Sell Token", async () => {
-    const [curveConfig] = PublicKey.findProgramAddressSync(
-      [Buffer.from(CURVE_SEED)],
-      program.programId
-    );
-    const mint_pkey = new PublicKey("EzSW6FNWaRbAwGz2V9mFCYkxdtaK378b4QD9MHJnCZQX");
-    const pool = PublicKey.findProgramAddressSync(
-                [
-                  Buffer.from(POOL_SEED),
-                  mint_pkey.toBuffer(),
-                ],
-                program.programId
-              )[0];
-    const pool_token_account = getAssociatedTokenAddressSync(mint_pkey, pool, true)
-    const tx = new Transaction();
-    const [pool_sol_vault, bump] = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from(POOL_SOL_VAULT),
-        mint_pkey.toBuffer(),
-      ],
-      program.programId
-    );
-    const associatedTokenAccountAddress = getAssociatedTokenAddressSync(
-      mint_pkey,
-      user.publicKey!
-    );
-    tx.add(await program.methods.sell(new anchor.BN(String(10000000 * 10 ** 9)), bump).accounts({
-      dexConfigurationAccount: curveConfig,
-      pool: pool,
-      user: user.publicKey,
-      tokenMint: mint_pkey,
-      poolTokenAccount: pool_token_account,
-      poolSolVault : pool_sol_vault,
-      userTokenAccount: associatedTokenAccountAddress,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-      rent: SYSVAR_RENT_PUBKEY,
-      systemProgram: SystemProgram.programId
-    }).instruction());
-    tx.feePayer = user.publicKey
-    tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
-    const sig = await sendAndConfirmTransaction(connection, tx, [user], { skipPreflight: true })
-    console.log("Your transaction signature", sig);
-  })
+  // it("Sell Token", async () => {
+  //   const [curveConfig] = PublicKey.findProgramAddressSync(
+  //     [Buffer.from(CURVE_SEED)],
+  //     program.programId
+  //   );
+  //   const mint_pkey = new PublicKey("EzSW6FNWaRbAwGz2V9mFCYkxdtaK378b4QD9MHJnCZQX");
+  //   const pool = PublicKey.findProgramAddressSync(
+  //               [
+  //                 Buffer.from(POOL_SEED),
+  //                 mint_pkey.toBuffer(),
+  //               ],
+  //               program.programId
+  //             )[0];
+  //   const pool_token_account = getAssociatedTokenAddressSync(mint_pkey, pool, true)
+  //   const tx = new Transaction();
+  //   const [pool_sol_vault, bump] = PublicKey.findProgramAddressSync(
+  //     [
+  //       Buffer.from(POOL_SOL_VAULT),
+  //       mint_pkey.toBuffer(),
+  //     ],
+  //     program.programId
+  //   );
+  //   const associatedTokenAccountAddress = getAssociatedTokenAddressSync(
+  //     mint_pkey,
+  //     user.publicKey!
+  //   );
+  //   tx.add(await program.methods.sell(new anchor.BN(String(10000000 * 10 ** 9)), bump).accounts({
+  //     dexConfigurationAccount: curveConfig,
+  //     pool: pool,
+  //     user: user.publicKey,
+  //     tokenMint: mint_pkey,
+  //     poolTokenAccount: pool_token_account,
+  //     poolSolVault : pool_sol_vault,
+  //     userTokenAccount: associatedTokenAccountAddress,
+  //     tokenProgram: TOKEN_PROGRAM_ID,
+  //     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+  //     rent: SYSVAR_RENT_PUBKEY,
+  //     systemProgram: SystemProgram.programId
+  //   }).instruction());
+  //   tx.feePayer = user.publicKey
+  //   tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
+  //   const sig = await sendAndConfirmTransaction(connection, tx, [user], { skipPreflight: true })
+  //   console.log("Your transaction signature", sig);
+  // })
 });

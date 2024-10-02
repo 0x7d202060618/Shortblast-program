@@ -8,7 +8,7 @@ pub mod consts;
 use instructions::*;
 
 
-declare_id!("SBjejM67BaGEtGxkMLCMMvHiSMYYJkfqFppcF7qi6DC");
+declare_id!("BR9Fx1cBdY8Tt9JYvieh95gNgmVZT4zUNAsa4F5dZDEJ");
 
 #[program]
 pub mod solana_program {
@@ -33,6 +33,10 @@ pub mod solana_program {
 
     pub fn create_pool(ctx: Context<CreateLiquidityPool>) -> Result<()> {
         create_pool::create_pool(ctx)
+    }
+
+    pub fn create_short_pool(ctx: Context<CreateShortingPool>) -> Result<()> {
+        create_short_pool::create_short_pool(ctx)
     }
 
     pub fn buy(ctx: Context<Buy>, amount: u64) -> Result<()> {
