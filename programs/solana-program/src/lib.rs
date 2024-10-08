@@ -8,7 +8,7 @@ pub mod consts;
 use instructions::*;
 
 
-declare_id!("BR9Fx1cBdY8Tt9JYvieh95gNgmVZT4zUNAsa4F5dZDEJ");
+declare_id!("12o8fyrtvhq2ti3hKfX7BRBMCehU5BELNKE1NELMi5SB");
 
 #[program]
 pub mod solana_program {

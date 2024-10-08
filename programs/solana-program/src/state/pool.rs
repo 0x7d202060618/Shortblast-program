@@ -2,6 +2,7 @@ use crate::consts::INITIAL_LAMPORTS_FOR_POOL;
 use crate::consts::INITIAL_EXPONENT;
 use crate::consts::INITIAL_PROPORTION;
 use crate::errors::CustomError;
+use crate::Buy;
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
@@ -287,6 +288,11 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             token_amount,
             token_program,
         )?;
+        emit!(BuyEvent { 
+            reserve_sol: self.reserve_sol,
+            reserve_token: self.reserve_token,
+            total_supply: self.total_supply
+        });  
         Ok(())
     }
 
@@ -442,3 +448,10 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
         Ok(())
     }
 }
+
+#[event]  
+pub struct BuyEvent {  
+    pub reserve_sol: u64,
+    pub reserve_token: u64,
+    pub total_supply: u64  
+}  

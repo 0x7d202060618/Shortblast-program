@@ -75,3 +75,4 @@ pub struct Buy<'info> {
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
 }
+

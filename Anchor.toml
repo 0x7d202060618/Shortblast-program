@@ -5,10 +5,10 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-solana_program = "BR9Fx1cBdY8Tt9JYvieh95gNgmVZT4zUNAsa4F5dZDEJ"
+solana_program = "12o8fyrtvhq2ti3hKfX7BRBMCehU5BELNKE1NELMi5SB"
 
 [programs.devnet]
-solana_program = "BR9Fx1cBdY8Tt9JYvieh95gNgmVZT4zUNAsa4F5dZDEJ"
+solana_program = "12o8fyrtvhq2ti3hKfX7BRBMCehU5BELNKE1NELMi5SB"
 
 [registry]
 url = "https://api.apr.dev"
