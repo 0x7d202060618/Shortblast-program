@@ -1,7 +1,33 @@
+use crate::consts::INITIAL_EXPONENT;
 use crate::consts::INITIAL_LAMPORTS_FOR_POOL;
+use crate::consts::INITIAL_PROPORTION;
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
+use crate::errors::CustomError;
+
+use super::LiquidityPool;
+
+
+
+#[account]
+pub struct ShortingConfirguration {
+    pub collateral_leverage: f64,
+    pub hourly_borrow_rate: f64
+}
+
+
+impl ShortingConfirguration {
+    pub const SEED: &'static str = "ShortConfiguration";
+
+    // Discriminator (8) + f64 (8) + f64 (8)
+    pub const ACCOUNT_SIZE: usize = 8 + 32 + 8 + 8;
+
+    pub fn new(collateral_leverage: f64, hourly_borrow_rate: f64 ) -> Self {
+        Self { collateral_leverage, hourly_borrow_rate }
+    }
+}
+
 
 
 #[account]
@@ -12,7 +38,8 @@ pub struct ShortPool {
     pub reserve_token: u64, // Reserve amount of token in the pool
     pub reserve_sol: u64,   // Reserve amount of sol_token in the pool
     pub bump: u8,           // Nonce for the program-derived address
-    pub created_at:  i64    //Pool Create timestamps
+    pub created_at:  i64,    //Pool Create timestamps
+    pub borrow_info: Vec<UserBorrow>
 }
 
 impl ShortPool {
@@ -31,6 +58,7 @@ impl ShortPool {
             total_supply: 0_u64,
             reserve_token: 0_u64,
             reserve_sol: 0_u64,
+            // borrow_info: vec![],
             bump,
             created_at: Clock::get().unwrap().unix_timestamp
         }
@@ -67,6 +95,38 @@ pub trait ShortPoolAccount<'info> {
         pool_sol_account: &mut AccountInfo<'info>,
         authority: &Signer<'info>,
         bump: u8,
+        token_program: &Program<'info, Token>,
+        system_program: &Program<'info, System>,
+    ) -> Result<()>;
+
+    fn borrow(
+        &mut self,
+        configuration_account: &Account<'info, ShortingConfirguration>,
+        token_pool: &Account<'info, LiquidityPool>,
+        token_accounts: (
+            &mut Account<'info, Mint>,
+            &mut Account<'info, TokenAccount>,
+            &mut Account<'info, TokenAccount>,
+        ),
+        pool_sol_vault: &mut AccountInfo<'info>,
+        amount: u64,
+        authority: &Signer<'info>,
+        token_program: &Program<'info, Token>,
+        system_program: &Program<'info, System>,
+    ) -> Result<()>;
+
+    fn refund(
+        &mut self,
+        token_accounts: (
+            &mut Account<'info, Mint>,
+            &mut Account<'info, TokenAccount>,
+            &mut Account<'info, TokenAccount>,
+        ),
+        pool_sol_vault: &mut AccountInfo<'info>,
+        amount: u64,
+        sol_amount: u64,
+        bump: u8,
+        authority: &Signer<'info>,
         token_program: &Program<'info, Token>,
         system_program: &Program<'info, System>,
     ) -> Result<()>;
@@ -166,6 +226,93 @@ impl<'info> ShortPoolAccount<'info> for Account<'info, ShortPool> {
         Ok(())
     }
 
+    fn borrow(
+        &mut self,
+        configuration_account: &Account<'info, ShortingConfirguration>,
+        token_pool: &Account<'info, LiquidityPool>,
+        token_accounts: (
+            &mut Account<'info, Mint>,
+            &mut Account<'info, TokenAccount>,
+            &mut Account<'info, TokenAccount>,
+        ),
+        pool_sol_vault: &mut AccountInfo<'info>,
+        amount: u64,
+        authority: &Signer<'info>,
+        token_program: &Program<'info, Token>,
+        system_program: &Program<'info, System>,
+    ) -> Result<()> {
+        if amount == 0 {
+            return err!(CustomError::InvalidAmount);
+        }
+
+        if amount > self.reserve_token {
+            return err!(CustomError::NotEnoughTokenInVault);
+        }
+        let current_token_supply = (token_pool.total_supply as f64 - token_pool.reserve_token as f64) / 1_000_000_000.0;
+        let token_price = INITIAL_PROPORTION * f64::exp(INITIAL_EXPONENT * current_token_supply); //buying price per 10M tokens
+
+        let sol_amount = ((amount as f64 * configuration_account.collateral_leverage / 100.0 / 10000000.0) * token_price as f64).floor() as u64;
+
+        self.reserve_sol += sol_amount;
+        self.reserve_token -= amount;
+
+        self.transfer_sol_to_pool(authority, pool_sol_vault, sol_amount, system_program)?;
+
+        self.transfer_token_from_pool(
+            token_accounts.1,
+            token_accounts.2,
+            amount,
+            token_program,
+        )?;
+     
+        Ok(())
+    }
+
+    fn refund(
+        &mut self,
+        token_accounts: (
+            &mut Account<'info, Mint>,
+            &mut Account<'info, TokenAccount>,
+            &mut Account<'info, TokenAccount>,
+        ),
+        pool_sol_vault: &mut AccountInfo<'info>,
+        amount: u64,
+        sol_amount: u64,
+        bump: u8,
+        authority: &Signer<'info>,
+        token_program: &Program<'info, Token>,
+        system_program: &Program<'info, System>,
+    ) -> Result<()> {
+        if amount == 0 {
+            return err!(CustomError::InvalidAmount);
+        }
+
+        if self.reserve_token < amount {
+            return err!(CustomError::TokenAmountToSellTooBig);
+        }
+
+        if self.reserve_sol < sol_amount {
+            return err!(CustomError::NotEnoughSolInVault);
+        }
+
+        self.transfer_token_to_pool(
+            token_accounts.2,
+            token_accounts.1,
+            amount as u64,
+            authority,
+            token_program,
+        )?;
+
+        self.reserve_token += amount;
+        self.reserve_sol -= sol_amount;
+
+        self.transfer_sol_from_pool(pool_sol_vault, authority, sol_amount, bump, system_program)?;
+
+     
+        Ok(())
+    }
+
+
     fn transfer_token_from_pool(
         &self,
         from: &Account<'info, TokenAccount>,
@@ -263,4 +410,12 @@ impl<'info> ShortPoolAccount<'info> for Account<'info, ShortPool> {
         )?;
         Ok(())
     }
+}
+
+
+#[derive(AnchorSerialize, AnchorDeserialize, Eq, PartialEq, Clone, Copy)]
+pub struct UserBorrow {
+    pub user: Pubkey, // immutable
+    pub token_amount : u64,
+    pub sol_collateral: u64
 }

@@ -29,6 +29,16 @@ pub fn create_pool(ctx: Context<CreateLiquidityPool>) -> Result<()> {
         &ctx.accounts.system_program
     )?;
 
+    emit!(CreatePoolEvent {
+        address: pool.key(),
+        creator: ctx.accounts.payer.key(),    
+        token_mint: ctx.accounts.token_mint.key(),      
+        total_supply: pool.total_supply,  
+        reserve_token: pool.reserve_token,
+        reserve_sol: pool.reserve_sol,   
+        bump: pool.bump,
+    });
+
     Ok(())
 }
 
@@ -76,3 +86,16 @@ pub struct CreateLiquidityPool<'info> {
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
 }
+
+
+
+#[event]  
+pub struct CreatePoolEvent {
+    pub address: Pubkey,
+    pub creator: Pubkey,    // Public key of the pool creator
+    pub token_mint: Pubkey,      // Public key of the token mint in the liquidity pool
+    pub total_supply: u64,  // Total supply of liquidity tokens
+    pub reserve_token: u64, // Reserve amount of token in the pool
+    pub reserve_sol: u64,   // Reserve amount of sol_token in the pool
+    pub bump: u8,           // Nonce for the program-derived address
+}  

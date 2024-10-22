@@ -8,10 +8,12 @@ pub mod consts;
 use instructions::*;
 
 
-declare_id!("12o8fyrtvhq2ti3hKfX7BRBMCehU5BELNKE1NELMi5SB");
+declare_id!("SBeGFPgyp2C9Jf7gd2BsdochFXQS9KD3KWn3BkQcAoF");
 
 #[program]
 pub mod solana_program {
+    use state::ShortingConfirguration;
+
     use super::*;
 
     pub fn create_token(
@@ -45,6 +47,18 @@ pub mod solana_program {
 
     pub fn sell(ctx: Context<Sell>, amount: u64, bump: u8) -> Result<()> {
         sell::sell(ctx, amount, bump)
+    }
+
+    pub fn initialize_shortpool(ctx: Context<InitializeShortpoolConfiguration>, collateral_leverage: f64, hourly_borrow_rate: f64) -> Result<()> {
+        initialize_shortpool::initialize_shortpool(ctx, collateral_leverage, hourly_borrow_rate)
+    }
+
+    pub fn borrow(ctx: Context<Borrow>, amount: u64) -> Result<()> {
+        borrow::borrow(ctx, amount)
+    }
+
+    pub fn refund(ctx: Context<Refund>, amount: u64, sol_amount: u64, bump: u8) -> Result<()> {
+        refund::refund(ctx, amount, sol_amount, bump)
     }
 }
 

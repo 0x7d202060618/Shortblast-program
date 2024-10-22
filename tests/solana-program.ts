@@ -22,6 +22,7 @@ const pool_reg_KP = Keypair.generate();
 const mintKeypair = Keypair.generate();
 
 ///////////////////////////////Constants////////////////////////////////
+const SHORTING_CONFIG_SEED = "ShortConfiguration";
 const CURVE_SEED = "CurveConfiguration";
 const POOL_SEED = "liquidity_pool";
 const POOL_SOL_VAULT = "liquidity_sol_vault";
@@ -113,38 +114,53 @@ describe("solana-program", () => {
   //   console.log("Your transaction signature", sig);
   // });
 
-  it("Initialize Pool", async () => {
-    const [curveConfig] = PublicKey.findProgramAddressSync(
-      [Buffer.from(CURVE_SEED)],
-      program.programId
-    );
-    const tx = new Transaction();
-      tx.add( SystemProgram.createAccount({
-      fromPubkey: user.publicKey,
-      newAccountPubkey: pool_reg_KP.publicKey,
-      lamports: await connection.getMinimumBalanceForRentExemption(
-        8+128
-      ),
-      space: 8+128,
-      programId: program.programId,
-    }));
-    tx.add(
-      await program.methods
-        .initializeCurve(1)
-        .accounts({
-          dexConfigurationAccount: curveConfig,
-          admin: user.publicKey,
-          poolRegistry: pool_reg_KP.publicKey,
-          rent: SYSVAR_RENT_PUBKEY,
-          systemProgram: SystemProgram.programId,
-        })
-        .instruction()
-    );
-    tx.feePayer = user.publicKey
-    tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
-    const sig = await sendAndConfirmTransaction(connection, tx, [user, pool_reg_KP], { skipPreflight: true })
-    console.log("Your transaction signature", sig);
-  });
+  // it("Initialize Pool", async () => {
+  //   const [curveConfig] = PublicKey.findProgramAddressSync(
+  //     [Buffer.from(CURVE_SEED)],
+  //     program.programId
+  //   );
+  //   const [shortingConfig] = PublicKey.findProgramAddressSync(
+  //     [Buffer.from(SHORTING_CONFIG_SEED)],
+  //     program.programId
+  //   );
+  //   const tx = new Transaction();
+  //   tx.add( SystemProgram.createAccount({
+  //     fromPubkey: user.publicKey,
+  //     newAccountPubkey: pool_reg_KP.publicKey,
+  //     lamports: await connection.getMinimumBalanceForRentExemption(
+  //       8+128
+  //     ),
+  //     space: 8+128,
+  //     programId: program.programId,
+  //   }));
+  //   tx.add(
+  //     await program.methods
+  //       .initializeCurve(1)
+  //       .accounts({
+  //         dexConfigurationAccount: curveConfig,
+  //         admin: user.publicKey,
+  //         poolRegistry: pool_reg_KP.publicKey,
+  //         rent: SYSVAR_RENT_PUBKEY,
+  //         systemProgram: SystemProgram.programId,
+  //       })
+  //       .instruction()
+  //   );
+  //   tx.add(
+  //     await program.methods
+  //       .initializeShortpool(70, 0.01)
+  //       .accounts({
+  //         configurationAccount: shortingConfig,
+  //         admin: user.publicKey,
+  //         rent: SYSVAR_RENT_PUBKEY,
+  //         systemProgram: SystemProgram.programId,
+  //       })
+  //       .instruction()
+  //   );
+  //   tx.feePayer = user.publicKey
+  //   tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
+  //   const sig = await sendAndConfirmTransaction(connection, tx, [user, pool_reg_KP], { skipPreflight: true })
+  //   console.log("Your transaction signature", sig);
+  // });
 
   // it("Create Pool", async () => {
   //   // mint: 8CbAizCWGpNCwQ5oQJ6Ydv1ng4RwCyC5NCbANZfNiCJi
@@ -326,4 +342,73 @@ describe("solana-program", () => {
   //   const sig = await sendAndConfirmTransaction(connection, tx, [user], { skipPreflight: true })
   //   console.log("Your transaction signature", sig);
   // })
+
+  // it("Get Short pool info", async () => {
+  //   //pool registry: 4jNncG1wPxznKrY6reVfL4LAc5ANu3ijFpykn61s2TG9
+  //   const pools = await program.account.shortPool.all();
+  //   console.log("Pools", pools);
+
+  //   const pool_registry = await program.account.poolRegistry.fetch("2rQ4WiVhwb2kthUqHr3X9HWzZf9DozV5kbpeoascbbxM")
+  //   console.log("Pool Registry", pool_registry)
+  // })
+
+  it("Borrow Token", async () => {
+    const [config] = PublicKey.findProgramAddressSync(
+      [Buffer.from(SHORTING_CONFIG_SEED)],
+      program.programId
+    );
+    // const mint_pkey = mintKeypair.publicKey;
+    const mint_pkey = new PublicKey("7x2q3AewpBtggt7BUbWcSqtz5BEXyHuX6HqdhXGsTVYA");
+    const pool = PublicKey.findProgramAddressSync(
+                [
+                  Buffer.from(SHORT_POOL_SEED),
+                  mint_pkey.toBuffer(),
+                ],
+                program.programId
+              )[0];
+    const token_pool = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from(POOL_SEED),
+        mint_pkey.toBuffer(),
+      ],
+      program.programId
+    )[0];
+    const pool_token_account = getAssociatedTokenAddressSync(mint_pkey, pool, true)
+    const tx = new Transaction();
+    const [pool_sol_vault] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from(SHORT_POOL_SOL_VAULT),
+        mint_pkey.toBuffer(),
+      ],
+      program.programId
+    );
+    const associatedTokenAccountAddress = getAssociatedTokenAddressSync(
+      mint_pkey,
+      user.publicKey!
+    );
+    tx.add(await program.methods.borrow(new anchor.BN(10000 * 10 ** 9)).accounts({
+      shortingConfigurationAccount: config,
+      pool: pool,
+      user: user.publicKey,
+      tokenPool: token_pool,
+      tokenMint: mint_pkey,
+      poolTokenAccount: pool_token_account,
+      poolSolVault : pool_sol_vault,
+      userTokenAccount: associatedTokenAccountAddress,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      rent: SYSVAR_RENT_PUBKEY,
+      systemProgram: SystemProgram.programId
+    }).instruction());
+    tx.feePayer = user.publicKey
+    tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash
+    const sig = await sendAndConfirmTransaction(connection, tx, [user], { skipPreflight: true })
+    console.log("Your transaction signature", sig);
+  })
+
+  it("Event Listner", async () => {
+    const subscriptionId = program.addEventListener("createPoolEvent", (event) => {
+      console.log(event)
+    })
+  })
 });

@@ -288,7 +288,11 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
             token_amount,
             token_program,
         )?;
-        emit!(BuyEvent { 
+        emit!(PurchaseEvent { 
+            transaction_type: 0,
+            amount: token_amount,
+            sol_amount: amount,
+            token_mint: self.token.key(),
             reserve_sol: self.reserve_sol,
             reserve_token: self.reserve_token,
             total_supply: self.total_supply
@@ -347,6 +351,15 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
 
         self.transfer_sol_from_pool(pool_sol_vault, authority, sol_amount, bump, system_program)?;
 
+        emit!(PurchaseEvent { 
+            transaction_type: 1,
+            token_mint: self.token.key(),
+            amount: amount,
+            sol_amount: sol_amount,            
+            reserve_sol: self.reserve_sol,
+            reserve_token: self.reserve_token,
+            total_supply: self.total_supply
+        });  
         Ok(())
     }
 
@@ -450,7 +463,11 @@ impl<'info> LiquidityPoolAccount<'info> for Account<'info, LiquidityPool> {
 }
 
 #[event]  
-pub struct BuyEvent {  
+pub struct PurchaseEvent {
+    pub transaction_type: u8,
+    pub amount: u64,
+    pub sol_amount: u64,
+    pub token_mint: Pubkey,  
     pub reserve_sol: u64,
     pub reserve_token: u64,
     pub total_supply: u64  
