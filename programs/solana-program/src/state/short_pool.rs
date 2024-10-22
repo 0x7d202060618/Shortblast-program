@@ -58,7 +58,7 @@ impl ShortPool {
             total_supply: 0_u64,
             reserve_token: 0_u64,
             reserve_sol: 0_u64,
-            // borrow_info: vec![],
+            borrow_info: vec![],
             bump,
             created_at: Clock::get().unwrap().unix_timestamp
         }
