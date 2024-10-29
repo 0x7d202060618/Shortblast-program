@@ -24,6 +24,7 @@ pub fn borrow(ctx: Context<Borrow>, amount: u64) -> Result<()> {
         &ctx.accounts.user,
         &ctx.accounts.token_program,
         &ctx.accounts.system_program,
+        ctx.accounts.user.key()
     )?;
 
     Ok(())

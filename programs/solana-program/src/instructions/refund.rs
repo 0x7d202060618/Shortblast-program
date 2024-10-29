@@ -18,12 +18,11 @@ pub fn refund(ctx: Context<Refund>, amount: u64, sol_amount: u64, bump: u8) -> R
     pool.refund(
         token_one_accounts,
         &mut ctx.accounts.pool_sol_vault,
-        amount,
-        sol_amount,
         bump,
         &ctx.accounts.user,
         &ctx.accounts.token_program,
         &ctx.accounts.system_program,
+        ctx.accounts.user.key()
     )?;
 
     Ok(())

@@ -49,4 +49,10 @@ pub enum CustomError {
    
     #[msg("Amount is negative")]
     NegativeNumber,
+
+    #[msg("User needs to refund last borrowed amount")]
+    NeedToRefundLastBorrow,
+
+    #[msg("User didn't borrow any amount")]
+    NoUserBorrow
 }

@@ -39,7 +39,7 @@ pub struct ShortPool {
     pub reserve_sol: u64,   // Reserve amount of sol_token in the pool
     pub bump: u8,           // Nonce for the program-derived address
     pub created_at:  i64,    //Pool Create timestamps
-    pub borrow_info: Vec<UserBorrow>
+    // pub borrow_info: Vec<UserBorrow>
 }
 
 impl ShortPool {
@@ -58,7 +58,7 @@ impl ShortPool {
             total_supply: 0_u64,
             reserve_token: 0_u64,
             reserve_sol: 0_u64,
-            borrow_info: vec![],
+            // borrow_info: vec![],
             bump,
             created_at: Clock::get().unwrap().unix_timestamp
         }
@@ -113,6 +113,7 @@ pub trait ShortPoolAccount<'info> {
         authority: &Signer<'info>,
         token_program: &Program<'info, Token>,
         system_program: &Program<'info, System>,
+        user: Pubkey
     ) -> Result<()>;
 
     fn refund(
@@ -123,12 +124,11 @@ pub trait ShortPoolAccount<'info> {
             &mut Account<'info, TokenAccount>,
         ),
         pool_sol_vault: &mut AccountInfo<'info>,
-        amount: u64,
-        sol_amount: u64,
         bump: u8,
         authority: &Signer<'info>,
         token_program: &Program<'info, Token>,
         system_program: &Program<'info, System>,
+        user: Pubkey
     ) -> Result<()>;
 
     fn transfer_token_from_pool(
@@ -240,6 +240,7 @@ impl<'info> ShortPoolAccount<'info> for Account<'info, ShortPool> {
         authority: &Signer<'info>,
         token_program: &Program<'info, Token>,
         system_program: &Program<'info, System>,
+        user: Pubkey
     ) -> Result<()> {
         if amount == 0 {
             return err!(CustomError::InvalidAmount);
@@ -265,6 +266,24 @@ impl<'info> ShortPoolAccount<'info> for Account<'info, ShortPool> {
             token_program,
         )?;
      
+        // let user_borrow_info = self.borrow_info.iter_mut().find(|d| d.user == user);  
+        // match user_borrow_info {  
+        //     Some(entry) => {  
+        //         if entry.sol_collateral != 0 {
+        //            return err!(CustomError::NeedToRefundLastBorrow)
+        //         }
+        //         entry.token_amount = amount;
+        //         entry.sol_collateral = sol_amount;
+        //     }  
+        //     None => {  
+        //         self.borrow_info.push(UserBorrow{
+        //             user: user,
+        //             token_amount: amount,
+        //             sol_collateral: sol_amount
+        //         });
+        //     }  
+        // }  
+
         Ok(())
     }
 
@@ -276,38 +295,48 @@ impl<'info> ShortPoolAccount<'info> for Account<'info, ShortPool> {
             &mut Account<'info, TokenAccount>,
         ),
         pool_sol_vault: &mut AccountInfo<'info>,
-        amount: u64,
-        sol_amount: u64,
         bump: u8,
         authority: &Signer<'info>,
         token_program: &Program<'info, Token>,
         system_program: &Program<'info, System>,
+        user: Pubkey
     ) -> Result<()> {
-        if amount == 0 {
-            return err!(CustomError::InvalidAmount);
-        }
+        // if amount == 0 {
+        //     return err!(CustomError::InvalidAmount);
+        // }
 
-        if self.reserve_token < amount {
-            return err!(CustomError::TokenAmountToSellTooBig);
-        }
+        // if self.reserve_token < amount {
+        //     return err!(CustomError::TokenAmountToSellTooBig);
+        // }
 
-        if self.reserve_sol < sol_amount {
-            return err!(CustomError::NotEnoughSolInVault);
-        }
+        // if self.reserve_sol < sol_amount {
+        //     return err!(CustomError::NotEnoughSolInVault);
+        // }
 
-        self.transfer_token_to_pool(
-            token_accounts.2,
-            token_accounts.1,
-            amount as u64,
-            authority,
-            token_program,
-        )?;
+        // let user_borrow_info = self.borrow_info.iter_mut().find(|d| d.user == user);  
+        // match user_borrow_info {  
+        //     Some(entry) => {  
+        //         let amount = entry.token_amount;
+        //         let sol_amount = entry.sol_collateral;
 
-        self.reserve_token += amount;
-        self.reserve_sol -= sol_amount;
+        //         self.transfer_token_to_pool(
+        //             token_accounts.2,
+        //             token_accounts.1,
+        //             amount as u64,
+        //             authority,
+        //             token_program,
+        //         )?;
 
-        self.transfer_sol_from_pool(pool_sol_vault, authority, sol_amount, bump, system_program)?;
+        //         self.transfer_sol_from_pool(pool_sol_vault, authority, sol_amount, bump, system_program)?;
 
+        //         self.reserve_token += amount;
+        //         self.reserve_sol -= sol_amount;
+
+        //     }  
+        //     None => {  
+        //         return err!(CustomError::NoUserBorrow)
+        //     }  
+        // }  
      
         Ok(())
     }
